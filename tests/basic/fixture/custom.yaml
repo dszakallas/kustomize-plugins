@@ -1,0 +1,12 @@
+apiVersion: unused
+kind: unused
+metadata:
+  name: unused
+spec:
+  some:
+    nested: value
+  other:
+    things:
+      - list
+      - of
+      - values

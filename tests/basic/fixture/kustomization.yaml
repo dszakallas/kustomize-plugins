@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- configmap.yaml
+transformers:
+- |
+  apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+  kind: ResourceInjector
+  metadata:
+    name: inject
+    annotations:
+      config.kubernetes.io/function: |
+        exec:
+          path: ../../../bin/resourceinjector
+  spec:
+    source: ./custom.yaml
+    targets:
+    - select:
+        kind: ConfigMap
+      fieldPaths:
+      - data.[custom.yaml]
+      options:
+        create: true
+

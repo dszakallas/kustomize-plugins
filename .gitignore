@@ -7,6 +7,7 @@
 *.dll
 *.so
 *.dylib
+*bin
 
 # Test binary, built with `go test -c`
 *.test
@@ -30,3 +31,13 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
