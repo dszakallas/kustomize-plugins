@@ -1,7 +1,9 @@
+SOURCES = $(shell find cmd/resourceinjector -name '*.go')
+
 all: bin/resourceinjector
 
-bin/%:
-	go build -o $@ ./cmd/$*
+bin/resourceinjector: $(SOURCES)
+	go build -o $@ ./cmd/resourceinjector
 
 test: test/resourceinjector
 

@@ -1,18 +1,13 @@
 apiVersion: v1
 data:
   custom.yaml: |
-    apiVersion: unused
-    kind: unused
-    metadata:
-      name: unused
-    spec:
-      some:
-        nested: value
-      other:
-        things:
-        - list
-        - of
-        - values
+    some:
+      nested: value
+    other:
+      things:
+      - list
+      - of
+      - values
 kind: ConfigMap
 metadata:
   name: custom-config

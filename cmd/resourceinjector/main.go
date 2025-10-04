@@ -32,7 +32,6 @@ func main() {
 	}
 }
 
-
 // API is the top-level configuration for the function.
 type API struct {
 	Metadata struct {
@@ -45,19 +44,33 @@ type API struct {
 // Filter reads the source, builds it if necessary, and injects the result
 // into the target resources.
 func (r *API) Filter(items []*yaml.RNode) ([]*yaml.RNode, error) {
-	if r.Spec.Source == nil || *r.Spec.Source == "" {
-		return nil, fmt.Errorf("source must be specified")
+	if r.Spec.Source == nil || r.Spec.Source.Path == "" {
+		return nil, fmt.Errorf("source.path must be specified")
 	}
 
 	// 1. Render the source content.
-	renderedContent, err := renderSource(*r.Spec.Source)
+	source, err := kustomizeSource(r.Spec.Source.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to render source: %w", err)
 	}
 
-	// 2. Create a RNode from the rendered content to be injected.
+	if r.Spec.Source.FieldPath != "" {
+		var err error
+		source, err = source.Pipe(yaml.Lookup(r.Spec.Source.FieldPath))
+		if err != nil {
+			return nil, fmt.Errorf("failed to lookup field path in rendered source: %w", err)
+		}
+		if source == nil {
+			return nil, fmt.Errorf("field path %q not found in rendered source", r.Spec.Source.FieldPath)
+		}
+	}
+
 	// We wrap it in a string node as the value needs to be injected as a string.
-	valueNode := yaml.NewScalarRNode(renderedContent)
+	sourceContent, err := source.String()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert source to string: %w", err)
+	}
+	valueNode := yaml.NewScalarRNode(sourceContent)
 
 	items, err = applyReplacement(items, valueNode, r.Spec.Targets)
 	if err != nil {
@@ -67,9 +80,17 @@ func (r *API) Filter(items []*yaml.RNode) ([]*yaml.RNode, error) {
 	return items, nil
 }
 
+// SourceSpec defines the source of the content to be injected.
+type SourceSpec struct {
+	// Path to the kustomization directory.
+	Path string `yaml:"path" json:"path"`
+	// Optional field path to extract from the rendered source.
+	FieldPath string `yaml:"fieldPath,omitempty" json:"fieldPath,omitempty"`
+}
+
 // ResourceInjectorSpec defines the configuration for the resource injector.
 type ResourceInjectorSpec struct {
-	Source  *string           `yaml:"source,omitempty" json:"source,omitempty"`
+	Source  *SourceSpec       `yaml:"source,omitempty" json:"source,omitempty"`
 	Targets []*TargetSelector `json:"targets,omitempty" yaml:"targets,omitempty"`
 }
 
@@ -108,9 +129,9 @@ func (tsr *TargetSelectorRegex) Selects(id resid.ResId) bool {
 	return tsr.selectRegex.MatchGvk(id.Gvk) && tsr.selectRegex.MatchName(id.Name) && tsr.selectRegex.MatchNamespace(id.Namespace)
 }
 
-// renderSource reads a path and, if it's a kustomization directory, builds it.
-// Otherwise, it reads the content of the file. It returns the content as a string.
-func renderSource(sourcePath string) (string, error) {
+// kustomizeSource reads a path and, if it's a kustomization directory, builds it.
+// Otherwise, it reads the content of the file. It returns the content as a structured yaml node.
+func kustomizeSource(sourcePath string) (*yaml.RNode, error) {
 	fSys := filesys.MakeFsOnDisk()
 
 	// Check if the path is a directory
@@ -119,33 +140,22 @@ func renderSource(sourcePath string) (string, error) {
 		k := krusty.MakeKustomizer(krusty.MakeDefaultOptions())
 		resMap, err := k.Run(fSys, sourcePath)
 		if err != nil {
-			return "", fmt.Errorf("kustomize build failed for %q: %w", sourcePath, err)
+			return nil, fmt.Errorf("kustomize build failed for %q: %w", sourcePath, err)
 		}
 		yamlBytes, err := resMap.AsYaml()
 		if err != nil {
-			return "", fmt.Errorf("failed to marshal kustomize output to YAML: %w", err)
+			return nil, fmt.Errorf("failed to marshal kustomize output to YAML: %w", err)
 		}
-		return string(yamlBytes), nil
+		return yaml.Parse(string(yamlBytes))
 	}
 
 	// If not a kustomization, treat it as a plain file.
 	content, err := fSys.ReadFile(sourcePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read source file %q: %w", sourcePath, err)
+		return nil, fmt.Errorf("failed to read source file %q: %w", sourcePath, err)
 	}
 
-	node, err := yaml.Parse(string(content))
-	if err != nil {
-		return "", fmt.Errorf("failed to parse source yaml %q: %w", sourcePath, err)
-	}
-
-	// Convert the parsed node back to a string to strip comments.
-	contentStr, err := node.String()
-	if err != nil {
-		return "", fmt.Errorf("failed to stringify source yaml %q: %w", sourcePath, err)
-	}
-
-	return contentStr, nil
+	return yaml.Parse(string(content))
 }
 
 func applyReplacement(nodes []*yaml.RNode, value *yaml.RNode, targetSelectors []*TargetSelector) ([]*yaml.RNode, error) {

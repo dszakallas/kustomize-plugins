@@ -22,13 +22,15 @@ Here is an example of a `ResourceInjector` configuration:
 apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
 kind: ResourceInjector
 metadata:
-    name: inject
-    annotations:
-        config.kubernetes.io/function: |
-            exec:
-                path: ../../../bin/resourceinjector
+  name: inject
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: ../../../bin/resourceinjector
 spec:
-  source: ../path/to/source/kustomization
+  source:
+    path: ../path/to/source/kustomization
+    fieldPath: spec
   targets:
     - select:
         kind: ConfigMap
@@ -39,7 +41,8 @@ spec:
 
 ### Fields
 
-*   `spec.source`: The path to the Kustomize source directory to be rendered. This path is relative to the `kustomization.yaml` file that includes the plugin.
+*   `spec.source.path`: The path to the Kustomize source directory to be rendered. This path is relative to the `kustomization.yaml` file that includes the plugin.
+*   `spec.source.fieldPath`: Optionally specify a field in the YAML to project.
 *   `spec.targets`: A list of target selectors to identify where the rendered content should be injected.
 *   `spec.targets.select`: A selector to identify the target resources. It supports fields like `group`, `version`, `kind`, `name`, and `namespace`.
 *   `spec.targets.fieldPaths`: A list of fields in the target resources where the rendered YAML should be injected. The content is injected as a string.
@@ -63,13 +66,14 @@ transformers:
     apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
     kind: ResourceInjector
     metadata:
-        name: inject
-        annotations:
-            config.kubernetes.io/function: |
-                exec:
-                    path: ../../../bin/resourceinjector
+      name: inject
+      annotations:
+        config.kubernetes.io/function: |
+          exec:
+            path: ../../../bin/resourceinjector
     spec:
-      source: ../common-resources
+      source:
+        path: ../common-resources
       targets:
         - select:
             kind: ConfigMap

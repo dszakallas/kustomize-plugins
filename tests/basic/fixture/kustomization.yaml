@@ -13,7 +13,9 @@ transformers:
         exec:
           path: ../../../bin/resourceinjector
   spec:
-    source: ./custom.yaml
+    source:
+      path: ./custom.yaml
+      fieldPath: spec
     targets:
     - select:
         kind: ConfigMap
