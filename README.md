@@ -26,7 +26,7 @@ metadata:
   annotations:
     config.kubernetes.io/function: |
       exec:
-        path: ../../../bin/resourceinjector
+        path: kustomize-plugin-resourceinjector
 spec:
   source:
     path: ../path/to/source/kustomization
@@ -70,7 +70,7 @@ transformers:
       annotations:
         config.kubernetes.io/function: |
           exec:
-            path: ../../../bin/resourceinjector
+            path: kustomize-plugin-resourceinjector
     spec:
       source:
         path: ../common-resources

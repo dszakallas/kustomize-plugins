@@ -1,12 +1,14 @@
 SOURCES = $(shell find cmd/resourceinjector -name '*.go')
 
-all: bin/resourceinjector
+PATH := $(shell pwd)/bin:$(PATH)
 
-bin/resourceinjector: $(SOURCES)
+all: bin/kustomize-plugin-resourceinjector
+
+bin/kustomize-plugin-resourceinjector: $(SOURCES)
 	go build -o $@ ./cmd/resourceinjector
 
-test: test/resourceinjector
+test: test/kustomize-plugin-resourceinjector
 
 .PHONY: test/%
-test/%: bin/%
+test/kustomize-plugin-%: bin/kustomize-plugin-%
 	go test -v ./cmd/$*/...
