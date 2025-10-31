@@ -3,6 +3,7 @@ module gitops.szakallas.eu/plugins
 go 1.25.0
 
 require (
+	github.com/mikefarah/yq/v4 v4.48.1
 	github.com/stretchr/testify v1.10.0
 	sigs.k8s.io/kustomize/api v0.20.1
 	sigs.k8s.io/kustomize/kyaml v0.20.1
@@ -31,7 +32,6 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mikefarah/yq/v4 v4.48.1 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
