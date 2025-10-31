@@ -126,7 +126,7 @@ spec:
     - select:
         kind: Deployment
       fieldPaths:
-        - spec.template.spec.containers.[].env
+        - spec.template.spec.containers.*.env
 ```
 
 ### Fields
@@ -166,7 +166,7 @@ transformers:
             kind: Deployment
             name: my-app
           fieldPaths:
-            - spec.template.spec.containers.[].env
+            - spec.template.spec.containers.*.env
 ```
 
 In this example, the `YqTransform` will:
@@ -181,26 +181,26 @@ In this example, the `YqTransform` will:
 ```yaml
 expression: "sort_by(.name)"
 fieldPaths:
-  - spec.template.spec.containers.[].env
+  - spec.template.spec.containers.*.env
 ```
 
 **Filter items from an array:**
 ```yaml
 expression: "map(select(.name != \"DEBUG\"))"
 fieldPaths:
-  - spec.template.spec.containers.[].env
+  - spec.template.spec.containers.*.env
 ```
 
 **Add or modify fields:**
 ```yaml
 expression: ". + {\"imagePullPolicy\": \"Always\"}"
 fieldPaths:
-  - spec.template.spec.containers.[]
+  - spec.template.spec.containers.*
 ```
 
 **Transform nested structures:**
 ```yaml
 expression: ".limits.memory = \"2Gi\""
 fieldPaths:
-  - spec.template.spec.containers.[].resources
+  - spec.template.spec.containers.*.resources
 ```
