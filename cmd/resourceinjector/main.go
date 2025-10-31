@@ -4,15 +4,11 @@ import (
 	"fmt"
 	"log"
 
+	internalyaml "gitops.szakallas.eu/plugins/internal/yaml"
 	"sigs.k8s.io/kustomize/api/krusty"
-	"sigs.k8s.io/kustomize/api/resource"
-	ktypes "sigs.k8s.io/kustomize/api/types"
-	"sigs.k8s.io/kustomize/kyaml/errors"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework/command"
-	"sigs.k8s.io/kustomize/kyaml/resid"
-	kyaml_utils "sigs.k8s.io/kustomize/kyaml/utils"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
@@ -39,6 +35,27 @@ type API struct {
 		Name string `yaml:"name"`
 	} `yaml:"metadata"`
 	Spec ResourceInjectorSpec `yaml:"spec" json:"spec"`
+}
+
+type setValue struct {
+	Value *yaml.RNode
+}
+
+func (s *setValue) CreateKind() yaml.Kind {
+	return s.Value.YNode().Kind
+}
+
+func (s *setValue) Apply(target *yaml.RNode) error {
+	value := s.Value.Copy()
+
+	if target.YNode().Kind == yaml.ScalarNode {
+		// For scalar, only copy the value (leave any type intact to auto-convert int->string or string->int)
+		target.YNode().Value = value.YNode().Value
+	} else {
+		target.SetYNode(value.YNode())
+	}
+
+	return nil
 }
 
 // Filter reads the source, builds it if necessary, and injects the result
@@ -70,9 +87,9 @@ func (r *API) Filter(items []*yaml.RNode) ([]*yaml.RNode, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert source to string: %w", err)
 	}
-	valueNode := yaml.NewScalarRNode(sourceContent)
+	setter := setValue{Value: yaml.NewScalarRNode(sourceContent)}
 
-	items, err = applyReplacement(items, valueNode, r.Spec.Targets)
+	items, err = internalyaml.ApplyTransform(&setter, items, r.Spec.Targets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply replacements: %w", err)
 	}
@@ -90,43 +107,8 @@ type SourceSpec struct {
 
 // ResourceInjectorSpec defines the configuration for the resource injector.
 type ResourceInjectorSpec struct {
-	Source  *SourceSpec       `yaml:"source,omitempty" json:"source,omitempty"`
-	Targets []*TargetSelector `json:"targets,omitempty" yaml:"targets,omitempty"`
-}
-
-// TargetSelector defines the criteria for selecting and modifying target resources.
-type TargetSelector struct {
-	Select     *ktypes.Selector `yaml:"select" json:"select"`
-	FieldPaths []string         `yaml:"fieldPaths" json:"fieldPaths"`
-	Options    *FieldOptions    `yaml:"options,omitempty" json:"options,omitempty"`
-}
-
-// FieldOptions defines options for modifying fields in the target resources.
-type FieldOptions struct {
-	// Create the field if it does not exist.
-	Create bool `json:"create,omitempty" yaml:"create,omitempty"`
-}
-
-type TargetSelectorRegex struct {
-	targetSelector *TargetSelector
-	selectRegex    *ktypes.SelectorRegex
-}
-
-func NewTargetSelectorRegex(ts *TargetSelector) (*TargetSelectorRegex, error) {
-	tsr := new(TargetSelectorRegex)
-	tsr.targetSelector = ts
-	var err error
-
-	tsr.selectRegex, err = ktypes.NewSelectorRegex(ts.Select)
-	if err != nil {
-		return nil, err
-	}
-
-	return tsr, nil
-}
-
-func (tsr *TargetSelectorRegex) Selects(id resid.ResId) bool {
-	return tsr.selectRegex.MatchGvk(id.Gvk) && tsr.selectRegex.MatchName(id.Name) && tsr.selectRegex.MatchNamespace(id.Namespace)
+	Source  *SourceSpec                    `yaml:"source,omitempty" json:"source,omitempty"`
+	Targets []*internalyaml.TargetSelector `json:"targets,omitempty" yaml:"targets,omitempty"`
 }
 
 // kustomizeSource reads a path and, if it's a kustomization directory, builds it.
@@ -156,118 +138,4 @@ func kustomizeSource(sourcePath string) (*yaml.RNode, error) {
 	}
 
 	return yaml.Parse(string(content))
-}
-
-func applyReplacement(nodes []*yaml.RNode, value *yaml.RNode, targetSelectors []*TargetSelector) ([]*yaml.RNode, error) {
-	for _, selector := range targetSelectors {
-		if selector.Select == nil {
-			return nil, fmt.Errorf("target must specify resources to select")
-		}
-		if len(selector.FieldPaths) == 0 {
-			selector.FieldPaths = []string{ktypes.DefaultReplacementFieldPath}
-		}
-		tsr, err := NewTargetSelectorRegex(selector)
-		if err != nil {
-			return nil, fmt.Errorf("error creating target selector: %w", err)
-		}
-		for _, possibleTarget := range nodes {
-			id := makeResId(possibleTarget)
-
-			// filter targets by label and annotation selectors
-			selectByAnnoAndLabel, err := selectByAnnoAndLabel(possibleTarget, selector)
-			if err != nil {
-				return nil, err
-			}
-			if !selectByAnnoAndLabel {
-				continue
-			}
-
-			if tsr.Selects(id) {
-				err := copyValueToTarget(possibleTarget, value, selector)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-	}
-	return nodes, nil
-}
-
-func selectByAnnoAndLabel(n *yaml.RNode, t *TargetSelector) (bool, error) {
-	if matchesSelect, err := matchesAnnoAndLabelSelector(n, t.Select); !matchesSelect || err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-func matchesAnnoAndLabelSelector(n *yaml.RNode, selector *ktypes.Selector) (bool, error) {
-	r := resource.Resource{RNode: *n}
-	annoMatch, err := r.MatchesAnnotationSelector(selector.AnnotationSelector)
-	if err != nil {
-		return false, err
-	}
-	labelMatch, err := r.MatchesLabelSelector(selector.LabelSelector)
-	if err != nil {
-		return false, err
-	}
-	return annoMatch && labelMatch, nil
-}
-
-func makeResId(n *yaml.RNode) resid.ResId {
-	apiVersion := n.Field(yaml.APIVersionField)
-	var group, version string
-	if apiVersion != nil {
-		group, version = resid.ParseGroupVersion(yaml.GetValue(apiVersion.Value))
-	}
-	return resid.NewResIdWithNamespace(
-		resid.Gvk{Group: group, Version: version, Kind: n.GetKind()}, n.GetName(), n.GetNamespace())
-}
-
-func copyValueToTarget(target *yaml.RNode, value *yaml.RNode, selector *TargetSelector) error {
-	for _, fp := range selector.FieldPaths {
-		createKind := yaml.Kind(0) // do not create
-		if selector.Options != nil && selector.Options.Create {
-			createKind = value.YNode().Kind
-		}
-		targetFieldList, err := target.Pipe(&yaml.PathMatcher{
-			Path:   kyaml_utils.SmarterPathSplitter(fp, "."),
-			Create: createKind})
-		if err != nil {
-			return errors.WrapPrefixf(err, "%s", fieldRetrievalError(fp, createKind != 0))
-		}
-		targetFields, err := targetFieldList.Elements()
-		if err != nil {
-			return errors.WrapPrefixf(err, "%s", fieldRetrievalError(fp, createKind != 0))
-		}
-		if len(targetFields) == 0 {
-			return errors.Errorf("%s", fieldRetrievalError(fp, createKind != 0))
-		}
-
-		for _, t := range targetFields {
-			if err := setFieldValue(t, value); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func fieldRetrievalError(fieldPath string, isCreate bool) string {
-	if isCreate {
-		return fmt.Sprintf("unable to find or create field %q in replacement target", fieldPath)
-	}
-	return fmt.Sprintf("unable to find field %q in replacement target", fieldPath)
-}
-
-func setFieldValue(targetField *yaml.RNode, value *yaml.RNode) error {
-	value = value.Copy()
-
-	if targetField.YNode().Kind == yaml.ScalarNode {
-		// For scalar, only copy the value (leave any type intact to auto-convert int->string or string->int)
-		targetField.YNode().Value = value.YNode().Value
-	} else {
-		targetField.SetYNode(value.YNode())
-	}
-
-	return nil
 }

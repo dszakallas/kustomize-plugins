@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - env:
+        - name: ALPHA
+          value: a
+        - name: BETA
+          value: b
+        - name: DELTA
+          value: d
+        - name: ZEBRA
+          value: z
+        image: nginx:latest
+        name: container1
+      - env:
+        - name: CHARLIE
+          value: c
+        - name: ECHO
+          value: e
+        - name: XRAY
+          value: x
+        - name: YELLOW
+          value: "y"
+        image: redis:latest
+        name: container2
