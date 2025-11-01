@@ -3,6 +3,9 @@ on: # yamllint disable-line rule:truthy
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
