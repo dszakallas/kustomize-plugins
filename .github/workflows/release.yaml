@@ -50,9 +50,13 @@ jobs:
           name: devenv
       - run: nix profile add nixpkgs#devenv
       - name: Build for ${{ matrix.platform }}
-        run: devenv build outputs.default.${{ matrix.platform }} | tee kustomize-plugins-${{ matrix.platform }}.pth
+        run: |
+          devenv build outputs.default.${{ matrix.platform }} \
+            | tee kustomize-plugins-${{ matrix.platform }}.pth
       - name: Create tarball
-        run: tar --directory=$(cat kustomize-plugins-${{ matrix.platform }}.pth) -cf kustomize-plugins-${{ matrix.platform }}.tar.gz .
+        run: |
+          tar --directory=$(cat kustomize-plugins-${{ matrix.platform }}.pth) \
+            -cf kustomize-plugins-${{ matrix.platform }}.tar.gz .
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:

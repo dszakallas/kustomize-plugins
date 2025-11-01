@@ -4,3 +4,8 @@ inputs:
     url: github:cachix/devenv-nixpkgs/rolling
   flake-utils:
     url: github:numtide/flake-utils
+  davids-devenvs:
+    url: github:dszakallas/devenvs
+    flake: false
+imports:
+  - davids-devenvs/recommended

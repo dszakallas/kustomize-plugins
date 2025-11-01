@@ -1,5 +1,20 @@
 {
   "nodes": {
+    "davids-devenvs": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1750752599,
+        "owner": "dszakallas",
+        "repo": "devenvs",
+        "rev": "e137dc64414bae69af2923b19bda737227f8fa13",
+        "type": "github"
+      },
+      "original": {
+        "owner": "dszakallas",
+        "repo": "devenvs",
+        "type": "github"
+      }
+    },
     "devenv": {
       "locked": {
         "dir": "src/modules",
@@ -106,6 +121,7 @@
     },
     "root": {
       "inputs": {
+        "davids-devenvs": "davids-devenvs",
         "devenv": "devenv",
         "flake-utils": "flake-utils",
         "git-hooks": "git-hooks",

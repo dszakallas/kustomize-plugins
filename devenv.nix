@@ -1,4 +1,10 @@
-{ pkgs, inputs, lib, config, ... }:
+{
+  pkgs,
+  inputs,
+  lib,
+  config,
+  ...
+}:
 {
   options = {
     version = lib.mkOption {
@@ -20,26 +26,34 @@
       make test
     '';
 
-    outputs = let
-      params = { 
-        vendorHash = "sha256-9xZrmsJxxqB+Shluy3KtxRQxxJwm3tzhJLMG6KfbJhM=";
-        version = config.version;
-      };
-    in 
-      inputs.flake-utils.lib.eachDefaultSystem (system: 
-      let 
-        stdenv = (pkgs.stdenv // {
-          hostPlatform = inputs.nixpkgs.legacyPackages.${system}.stdenv.hostPlatform;
-        });
-        buildGoModule = pkgs.buildGoModule.override { inherit stdenv; };
+    outputs =
+      let
+        params = {
+          vendorHash = "sha256-9xZrmsJxxqB+Shluy3KtxRQxxJwm3tzhJLMG6KfbJhM=";
+          version = config.version;
+        };
       in
-      {
-        default = ((pkgs.callPackage ./pkg.nix (params // { inherit buildGoModule; })).overrideAttrs (old: {
-          env = stdenv.hostPlatform.go // {
-            CGO_ENABLED = "0";
-          };
-          doCheck = false;
-        }));
-    });
+      inputs.flake-utils.lib.eachDefaultSystem (
+        system:
+        let
+          stdenv = (
+            pkgs.stdenv
+            // {
+              hostPlatform = inputs.nixpkgs.legacyPackages.${system}.stdenv.hostPlatform;
+            }
+          );
+          buildGoModule = pkgs.buildGoModule.override { inherit stdenv; };
+        in
+        {
+          default = (
+            (pkgs.callPackage ./pkg.nix (params // { inherit buildGoModule; })).overrideAttrs (old: {
+              env = stdenv.hostPlatform.go // {
+                CGO_ENABLED = "0";
+              };
+              doCheck = false;
+            })
+          );
+        }
+      );
   };
 }

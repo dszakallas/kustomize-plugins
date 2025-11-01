@@ -20,7 +20,7 @@ buildGoModule rec {
     "-w"
   ];
 
-  subPackages = [ 
+  subPackages = [
     "cmd/resourceinjector"
     "cmd/yqtransform"
   ];
