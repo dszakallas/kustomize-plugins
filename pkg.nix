@@ -4,7 +4,7 @@
   stdenv,
   lib,
   vendorHash,
-  version
+  version,
 }:
 
 buildGoModule rec {
@@ -13,9 +13,7 @@ buildGoModule rec {
 
   src = ./.;
 
-  env = {
-    CGO_ENABLED = "0";
-  };
+  env.CGO_ENABLED = "0";
 
   ldflags = [
     "-s"

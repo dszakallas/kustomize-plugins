@@ -26,8 +26,20 @@
         version = config.version;
       };
     in 
-      inputs.flake-utils.lib.eachDefaultSystem (system: {
-        default = inputs.nixpkgs.legacyPackages.${system}.callPackage ./pkg.nix params;
-      });
+      inputs.flake-utils.lib.eachDefaultSystem (system: 
+      let 
+        stdenv = (pkgs.stdenv // {
+          hostPlatform = inputs.nixpkgs.legacyPackages.${system}.stdenv.hostPlatform;
+        });
+        buildGoModule = pkgs.buildGoModule.override { inherit stdenv; };
+      in
+      {
+        default = ((pkgs.callPackage ./pkg.nix (params // { inherit buildGoModule; })).overrideAttrs (old: {
+          env = stdenv.hostPlatform.go // {
+            CGO_ENABLED = "0";
+          };
+          doCheck = false;
+        }));
+    });
   };
 }
