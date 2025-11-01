@@ -13,3 +13,4 @@ spec:
       kind: Deployment
     fieldPaths:
     - spec.template.spec.containers.*.env
+    - spec.template.spec.initContainers.*.env

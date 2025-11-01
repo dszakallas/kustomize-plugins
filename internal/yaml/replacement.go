@@ -133,9 +133,6 @@ func applyTransformToTarget(transform Transform, target *yaml.RNode, selector *T
 		if err != nil {
 			return errors.WrapPrefixf(err, "%s", fieldRetrievalError(fp, createKind != 0))
 		}
-		if len(targetFields) == 0 {
-			return errors.Errorf("%s", fieldRetrievalError(fp, createKind != 0))
-		}
 
 		for _, t := range targetFields {
 			if err := transform.Apply(t); err != nil {
