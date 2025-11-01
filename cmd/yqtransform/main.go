@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
-	internalyaml "gitops.szakallas.eu/plugins/internal/yaml"
+	"gitops.szakallas.eu/plugins/internal/transform"
 	logging "gopkg.in/op/go-logging.v1"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework/command"
@@ -33,7 +33,6 @@ func main() {
 }
 
 func configureYqLogging() {
-	// Check if DEBUG environment variable is set
 	debugEnabled := os.Getenv("DEBUG") != ""
 	logging.SetLevel(logging.ERROR, "yq-lib") // Default to ERROR level
 	if debugEnabled {
@@ -44,8 +43,8 @@ func configureYqLogging() {
 
 // YqTransformSpec defines the configuration for the yq transformer.
 type YqTransformSpec struct {
-	Expression string                         `yaml:"expression" json:"expression"`
-	Targets    []*internalyaml.TargetSelector `json:"targets,omitempty" yaml:"targets,omitempty"`
+	Expression string                      `yaml:"expression" json:"expression"`
+	Targets    []*transform.TargetSelector `json:"targets,omitempty" yaml:"targets,omitempty"`
 }
 
 // API is the top-level configuration for the function.
@@ -68,7 +67,7 @@ func (r *API) Filter(items []*yaml.RNode) ([]*yaml.RNode, error) {
 		Evaluator:  yqlib.NewAllAtOnceEvaluator(),
 	}
 
-	items, err := internalyaml.ApplyTransform(yq, items, r.Spec.Targets)
+	items, err := transform.Apply(yq, items, r.Spec.Targets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply yq: %w", err)
 	}

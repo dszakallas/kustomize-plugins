@@ -1,4 +1,4 @@
-package yaml
+package transform
 
 import (
 	"fmt"
@@ -30,7 +30,9 @@ type FieldOptions struct {
 	Create bool `json:"create,omitempty" yaml:"create,omitempty"`
 }
 
-func ApplyTransform(transform Transform, nodes []*yaml.RNode, targetSelectors []*TargetSelector) ([]*yaml.RNode, error) {
+// Apply applies the given Transform to the specified fields of the target resources
+// selected by the provided TargetSelectors.
+func Apply(transform Transform, nodes []*yaml.RNode, targetSelectors []*TargetSelector) ([]*yaml.RNode, error) {
 	for _, selector := range targetSelectors {
 		if selector.Select == nil {
 			return nil, fmt.Errorf("target must specify resources to select")

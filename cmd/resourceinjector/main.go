@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	internalyaml "gitops.szakallas.eu/plugins/internal/yaml"
+	"gitops.szakallas.eu/plugins/internal/transform"
 	"sigs.k8s.io/kustomize/api/krusty"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework"
@@ -89,7 +89,7 @@ func (r *API) Filter(items []*yaml.RNode) ([]*yaml.RNode, error) {
 	}
 	setter := setValue{Value: yaml.NewScalarRNode(sourceContent)}
 
-	items, err = internalyaml.ApplyTransform(&setter, items, r.Spec.Targets)
+	items, err = transform.Apply(&setter, items, r.Spec.Targets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply replacements: %w", err)
 	}
@@ -107,8 +107,8 @@ type SourceSpec struct {
 
 // ResourceInjectorSpec defines the configuration for the resource injector.
 type ResourceInjectorSpec struct {
-	Source  *SourceSpec                    `yaml:"source,omitempty" json:"source,omitempty"`
-	Targets []*internalyaml.TargetSelector `json:"targets,omitempty" yaml:"targets,omitempty"`
+	Source  *SourceSpec                 `yaml:"source,omitempty" json:"source,omitempty"`
+	Targets []*transform.TargetSelector `json:"targets,omitempty" yaml:"targets,omitempty"`
 }
 
 // kustomizeSource reads a path and, if it's a kustomization directory, builds it.
