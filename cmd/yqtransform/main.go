@@ -3,15 +3,20 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	internalyaml "gitops.szakallas.eu/plugins/internal/yaml"
+	logging "gopkg.in/op/go-logging.v1"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework/command"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
 func main() {
+	// Configure yq logging - suppress debug messages unless DEBUG env var is set
+	configureYqLogging()
+
 	api := &API{}
 
 	// Use the kyaml framework to build a command-line tool.
@@ -24,6 +29,16 @@ func main() {
 
 	if err := cmd.Execute(); err != nil {
 		log.Fatalf("Error executing command: %v", err)
+	}
+}
+
+func configureYqLogging() {
+	// Check if DEBUG environment variable is set
+	debugEnabled := os.Getenv("DEBUG") != ""
+	logging.SetLevel(logging.ERROR, "yq-lib") // Default to ERROR level
+	if debugEnabled {
+		logging.SetLevel(logging.DEBUG, "yq-lib")
+		return
 	}
 }
 
