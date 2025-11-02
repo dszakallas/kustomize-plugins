@@ -1,0 +1,13 @@
+apiVersion: v1
+data:
+  inner.yaml: |
+    apiVersion: v1
+    data:
+      key1: value1
+      key2: value2
+    kind: ConfigMap
+    metadata:
+      name: config
+kind: ConfigMap
+metadata:
+  name: config

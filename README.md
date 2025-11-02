@@ -57,6 +57,25 @@ spec:
 - `spec.source.path`: The path to the Kustomize source directory to be rendered. This path is relative to the
   `kustomization.yaml` file that includes the plugin.
 - `spec.source.fieldPath`: Optionally specify a field in the YAML to project.
+- `spec.source.options`: (Optional) Kustomize build options applied when rendering the source directory.
+  - `spec.source.options.reorder`: (Optional) Specifies the order in which resources should be output. Valid values:
+    - `"legacy"` - Use legacy ordering
+    - `"result"` - Use result ordering
+  - `spec.source.options.addManagedbyLabel`: (Optional) A boolean that, if `true`, adds a `app.kubernetes.io/managed-by`
+    label to all resources.
+  - `spec.source.options.loadRestrictions`: (Optional) Specifies restrictions on where files can be loaded from. Valid values:
+    - `"none"` - No restrictions, allowing absolute or relative paths outside the kustomization directory
+    - `"rootOnly"` - Restrict file loads to the kustomization directory or below (default)
+    - `"unknown"` - Unknown restriction mode
+  - `spec.source.options.pluginConfig`: (Optional) Plugin configuration for the source build.
+    - `spec.source.options.pluginConfig.pluginRestrictions`: (Optional) Specifies plugin restrictions. Valid values:
+      - `"none"` - No restrictions, all plugins allowed
+      - `"builtinsOnly"` - Only built-in plugins allowed
+      - `"unknown"` - Unknown restriction mode
+    - `spec.source.options.pluginConfig.fnpLoadingOptions.enableExec`: (Optional) A boolean that, if `true`, allows
+      execution of external plugins (exec-based plugins).
+    - `spec.source.options.pluginConfig.helmConfig.enabled`: (Optional) A boolean that, if `true`, enables Helm
+      chart rendering.
 - `spec.targets`: A list of target selectors to identify where the rendered content should be injected.
 - `spec.targets.select`: A selector to identify the target resources. It supports fields like `group`, `version`,
   `kind`, `name`, and `namespace`.
@@ -104,6 +123,48 @@ In this example, the `ResourceInjector` will:
 1. Build the Kustomize source located at `../common-resources`.
 2. Find the `ConfigMap` named `my-app-configmap`.
 3. Inject the rendered YAML from `../common-resources` into the `data.injected-config` field of the `ConfigMap`.
+
+### Advanced Configuration (ResourceInjector)
+
+You can fine-tune how the source is rendered by specifying kustomize options:
+
+```yaml
+apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+kind: ResourceInjector
+metadata:
+  name: inject-with-options
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: kustomize-plugin-resourceinjector
+spec:
+  source:
+    path: ../common-resources
+    fieldPath: spec.template
+    options:
+      reorder: "result"
+      addManagedByLabel: true
+      loadRestrictions: "none"
+      pluginConfig:
+        pluginRestrictions: "none"
+        fnpLoadingOptions:
+          enableExec: true
+        helmConfig:
+          enabled: true
+  targets:
+    - select:
+        kind: ConfigMap
+        name: my-app-configmap
+      fieldPaths:
+        - data.template-spec
+```
+
+In this example:
+
+- The source is rendered with `reorder: "result"` for result-based resource ordering
+- A managed-by label is added to all resources in the source
+- File loading is unrestricted (`loadRestrictions: "none"`)
+- All plugins are allowed, including external executables and Helm charts
 
 ## YqTransform
 

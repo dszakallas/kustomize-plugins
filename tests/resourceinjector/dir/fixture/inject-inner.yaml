@@ -1,0 +1,18 @@
+apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+kind: ResourceInjector
+metadata:
+  name: inject-inner
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: kustomize-plugin-resourceinjector
+spec:
+  source:
+    path: ./inner
+  targets:
+  - select:
+      kind: ConfigMap
+    fieldPaths:
+    - data.[inner.yaml]
+    options:
+      create: true
