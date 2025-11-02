@@ -117,7 +117,7 @@ type SourceSpec struct {
 // SourceOptions allows fine-tuning of the kustomize run for the source.
 type SourceOptions struct {
 	Reorder           krusty.ReorderOption `yaml:"reorder,omitempty" json:"reorder,omitempty"`
-	AddManagedbyLabel bool                 `yaml:"addManagedByLabel,omitempty" json:"addManagedbyLabel,omitempty"`
+	AddManagedByLabel bool                 `yaml:"addManagedByLabel,omitempty" json:"addManagedByLabel,omitempty"`
 	LoadRestrictions  LoadRestrictionsType `yaml:"loadRestrictions,omitempty" json:"loadRestrictions,omitempty"`
 	PluginConfig      *PluginConfig        `yaml:"pluginConfig,omitempty" json:"pluginConfig,omitempty"`
 }
@@ -212,7 +212,7 @@ func applySourceOptions(opts *krusty.Options, sourceOpts *SourceOptions) error {
 		}
 		opts.LoadRestrictions = lr
 	}
-	opts.AddManagedbyLabel = sourceOpts.AddManagedbyLabel
+	opts.AddManagedbyLabel = sourceOpts.AddManagedByLabel
 
 	if sourceOpts.PluginConfig != nil {
 		pr, err := parsePluginRestrictions(sourceOpts.PluginConfig.PluginRestrictions)
