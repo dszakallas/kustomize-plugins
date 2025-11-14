@@ -1,0 +1,22 @@
+apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+kind: YqTransform
+metadata:
+  name: inject
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: kustomize-plugin-yqtransform
+spec:
+  source:
+    vars:
+      - name: source
+        source:
+          kind: CustomResource
+          name: example
+          fieldPath: spec
+    expression: ".= ($source | @yaml)"
+  targets:
+    - select:
+        kind: ConfigMap
+      fieldPaths:
+        - data.[inner.yaml]

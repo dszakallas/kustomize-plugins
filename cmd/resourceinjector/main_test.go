@@ -3,9 +3,9 @@ package main
 import (
 	"testing"
 
-	"gitops.szakallas.eu/plugins/internal/util"
+	"gitops.szakallas.eu/plugins/internal/utils"
 )
 
 func TestResourceInjector(t *testing.T) {
-	util.TestE2E(t, "../../tests/resourceinjector")
+	utils.TestE2E(t, "../../tests/resourceinjector")
 }

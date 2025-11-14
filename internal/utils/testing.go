@@ -1,4 +1,4 @@
-package util
+package utils
 
 import (
 	"os"
@@ -41,7 +41,12 @@ func TestE2E(t *testing.T, path string) {
 			yaml, err := resMap.AsYaml()
 			require.NoError(t, err)
 
-			if os.Getenv("TEST_REGEN") != "" {
+			var outFileExists bool
+			if _, err := os.Stat(outPath); err == nil {
+				outFileExists = true
+			}
+
+			if os.Getenv("TEST_REGEN") != "" || !outFileExists {
 				err := os.WriteFile(outPath, yaml, 0644)
 				require.NoError(t, err)
 				t.Logf("regenerated %s", outPath)

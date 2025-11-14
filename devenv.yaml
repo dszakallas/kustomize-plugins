@@ -9,3 +9,4 @@ inputs:
     flake: false
 imports:
   - davids-devenvs/recommended
+  - davids-devenvs/go

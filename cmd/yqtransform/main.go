@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
 	"gitops.szakallas.eu/plugins/internal/transform"
+	goyaml "go.yaml.in/yaml/v3"
 	logging "gopkg.in/op/go-logging.v1"
+	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework/command"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -43,8 +47,21 @@ func configureYqLogging() {
 
 // YqTransformSpec defines the configuration for the yq transformer.
 type YqTransformSpec struct {
-	Expression string                      `yaml:"expression" json:"expression"`
-	Targets    []*transform.TargetSelector `json:"targets,omitempty" yaml:"targets,omitempty"`
+	Source  *Source                     `yaml:"source,omitempty" json:"source,omitempty"`
+	Targets []*transform.TargetSelector `json:"targets,omitempty" yaml:"targets,omitempty"`
+}
+
+// Source defines the yq expression and arguments.
+type Source struct {
+	Expression string `yaml:"expression" json:"expression"`
+	Vars       []Var  `yaml:"vars,omitempty" json:"vars,omitempty"`
+}
+
+// Var defines a variable to be passed to the yq expression.
+type Var struct {
+	Name        string                `yaml:"name" json:"name"`
+	SourceValue *string               `yaml:"sourceValue,omitempty" json:"sourceValue,omitempty"`
+	Source      *types.SourceSelector `yaml:"source,omitempty" json:"source,omitempty"`
 }
 
 // API is the top-level configuration for the function.
@@ -58,16 +75,23 @@ type API struct {
 
 // Filter applies the yq expression to the target resources.
 func (r *API) Filter(items []*yaml.RNode) ([]*yaml.RNode, error) {
-	if r.Spec.Expression == "" {
-		return nil, fmt.Errorf("expression must be specified")
+	if r.Spec.Source == nil || r.Spec.Source.Expression == "" {
+		return nil, fmt.Errorf("source.expression must be specified")
+	}
+
+	// Prepare yq variables
+	vars, err := prepareVars(r.Spec.Source.Vars, items)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare yq vars: %w", err)
 	}
 
 	yq := &yqTransform{
-		Expression: r.Spec.Expression,
+		Expression: r.Spec.Source.Expression,
 		Evaluator:  yqlib.NewAllAtOnceEvaluator(),
+		Variables:  vars,
 	}
 
-	items, err := transform.Apply(yq, items, r.Spec.Targets)
+	items, err = transform.Apply(yq, items, r.Spec.Targets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply yq: %w", err)
 	}
@@ -75,9 +99,71 @@ func (r *API) Filter(items []*yaml.RNode) ([]*yaml.RNode, error) {
 	return items, nil
 }
 
+func prepareVars(vars []Var, items []*yaml.RNode) (map[string]*goyaml.Node, error) {
+	varNodes := make(map[string]*goyaml.Node)
+
+	for _, v := range vars {
+		if v.Name == "" {
+			return nil, fmt.Errorf("variable name must be specified")
+		}
+
+		if _, exists := varNodes[v.Name]; exists {
+			return nil, fmt.Errorf("duplicate variable %s", v.Name)
+		}
+
+		var node *goyaml.Node
+		var err error
+
+		if v.SourceValue != nil {
+			node, err = sourceValueToNode(*v.SourceValue)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse sourceValue for variable %q: %w", v.Name, err)
+			}
+		} else if v.Source != nil {
+			selectedNode, err := transform.SelectSourceNode(items, v.Source)
+			if err != nil {
+				return nil, fmt.Errorf("failed to select source for variable %q: %w", v.Name, err)
+			}
+			if selectedNode == nil {
+				return nil, fmt.Errorf("no matching resource found for variable %q", v.Name)
+			}
+			node = selectedNode.YNode()
+		} else {
+			return nil, fmt.Errorf("either sourceValue or source must be specified for variable %q", v.Name)
+		}
+		varNodes[v.Name] = node
+	}
+
+	return varNodes, nil
+}
+
+func sourceValueToNode(value string) (*goyaml.Node, error) {
+	decoder := goyaml.NewDecoder(strings.NewReader(value))
+	var ynode goyaml.Node
+	if err := decoder.Decode(&ynode); err != nil {
+		return nil, err
+	}
+	// yq expects the top level node to be a document node
+	docNode := &goyaml.Node{
+		Kind:    goyaml.DocumentNode,
+		Content: []*goyaml.Node{&ynode},
+	}
+	return docNode, nil
+}
+
+func toCandidateNode(node *goyaml.Node) (*yqlib.CandidateNode, error) {
+	var res yqlib.CandidateNode
+	if err := res.UnmarshalYAML(node, nil); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 type yqTransform struct {
 	Expression string
 	Evaluator  yqlib.Evaluator
+	Context    context.Context
+	Variables  map[string]*goyaml.Node
 }
 
 func (s *yqTransform) CreateKind() yaml.Kind {
@@ -85,13 +171,53 @@ func (s *yqTransform) CreateKind() yaml.Kind {
 }
 
 func (s *yqTransform) Apply(target *yaml.RNode) error {
-	var inputNode yqlib.CandidateNode
-	if err := inputNode.UnmarshalYAML(target.YNode(), nil); err != nil {
-		return fmt.Errorf("failed to unmarshal node: %w", err)
+	// Create the 'vars' mapping node
+	varsMapNode := &goyaml.Node{Kind: goyaml.MappingNode}
+	for name, node := range s.Variables {
+		keyNode := &goyaml.Node{
+			Kind:  goyaml.ScalarNode,
+			Tag:   "!!str",
+			Value: name,
+		}
+		// Ensure we are appending the actual yaml.Node from the CandidateNode
+		varsMapNode.Content = append(varsMapNode.Content, keyNode, node)
+	}
+
+	// Create the top-level wrapper object
+	wrapperNode := &goyaml.Node{
+		Kind: goyaml.MappingNode,
+		Content: []*goyaml.Node{
+			{
+				Kind:  goyaml.ScalarNode,
+				Tag:   "!!str",
+				Value: "target",
+			},
+			target.YNode(),
+			{
+				Kind:  goyaml.ScalarNode,
+				Tag:   "!!str",
+				Value: "vars",
+			},
+			varsMapNode,
+		},
+	}
+
+	// Wrap the user expression
+	var wrappedExpression strings.Builder
+	for varName := range s.Variables {
+		wrappedExpression.WriteString(fmt.Sprintf(".vars.%s as $%s | ", varName, varName))
+	}
+
+	finalExpression := fmt.Sprintf(".target | %s", s.Expression)
+	wrappedExpression.WriteString(finalExpression)
+
+	inputNode, err := toCandidateNode(wrapperNode)
+	if err != nil {
+		return fmt.Errorf("failed to create input node for expression: %w", err)
 	}
 
 	// Evaluate the expression
-	result, err := s.Evaluator.EvaluateNodes(s.Expression, &inputNode)
+	result, err := s.Evaluator.EvaluateNodes(wrappedExpression.String(), inputNode)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate expression: %w", err)
 	}

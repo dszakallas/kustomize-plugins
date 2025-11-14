@@ -209,8 +209,12 @@ spec:
 
 ### Fields (YqTransform)
 
-- `spec.expression`: A yq expression to apply to the selected fields. The expression operates on each selected field
+- `spec.source.expression`: A yq expression to apply to the selected fields. The expression operates on each selected field
   independently.
+- `spec.source.vars`: (Optional) A list of variables to be made available in the yq expression.
+  - `name`: The name of the variable.
+  - `sourceValue`: A string containing a YAML value to be used as the variable's value.
+  - `source`: A selector to another resource to be used as the variable's value.
 - `spec.targets`: A list of target selectors to identify which fields should be transformed.
 - `spec.targets.select`: A selector to identify the target resources. It supports fields like `group`, `version`,
   `kind`, `name`, and `namespace`.
@@ -242,7 +246,8 @@ transformers:
           exec:
             path: kustomize-plugin-yqtransform
     spec:
-      expression: "sort_by(.name)"
+      source:
+        expression: "sort_by(.name)"
       targets:
         - select:
             kind: Deployment
@@ -257,36 +262,83 @@ In this example, the `YqTransform` will:
 2. Locate all `env` arrays within the deployment's container specifications.
 3. Apply the `sort_by(.name)` yq expression to sort environment variables by name in each container.
 
+### Using Variables
+
+You can define variables and use them in your yq expressions.
+This is useful for injecting values from other resources or from literal strings.
+
+Here is an example of how to inject a field from another resource into a `ConfigMap`:
+
+```yaml
+apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+kind: YqTransform
+metadata:
+  name: inject
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: kustomize-plugin-yqtransform
+spec:
+  source:
+    vars:
+      - name: source
+        source:
+          kind: CustomResource
+          name: example
+          fieldPath: spec
+    expression: ".= ($source | @yaml)"
+  targets:
+  - select:
+      kind: ConfigMap
+    fieldPaths:
+    - data.[inner.yaml]
+```
+
+In this example:
+
+1. A variable named `source` is created from the `spec` field of a `CustomResource` named `example`.
+2. The yq expression `.= ($source | @yaml)` takes the `source` variable, converts it to
+   a YAML string, and sets it as the value of the selected field.
+3. The target is the `data.[inner.yaml]` field in a `ConfigMap`.
+
 ### Common Use Cases
 
 **Sort environment variables:**
 
 ```yaml
-expression: "sort_by(.name)"
-fieldPaths:
+source:
+  expression: "sort_by(.name)"
+targets:
+- fieldPaths:
   - spec.template.spec.containers.*.env
 ```
 
 **Filter items from an array:**
 
 ```yaml
-expression: "map(select(.name != \"DEBUG\"))"
-fieldPaths:
+source:
+  expression: "map(select(.name != \"DEBUG\"))"
+targets:
+- fieldPaths:
   - spec.template.spec.containers.*.env
 ```
 
 **Add or modify fields:**
 
 ```yaml
-expression: ". + {\"imagePullPolicy\": \"Always\"}"
-fieldPaths:
+source:
+  expression: ". + {\"imagePullPolicy\": \"Always\"}"
+targets:
+- fieldPaths:
   - spec.template.spec.containers.*
 ```
 
 **Transform nested structures:**
 
 ```yaml
-expression: ".limits.memory = \"2Gi\""
-fieldPaths:
+source:
+  expression: ".limits.memory = \"2Gi\""
+targets:
+- fieldPaths:
   - spec.template.spec.containers.*.resources
 ```
