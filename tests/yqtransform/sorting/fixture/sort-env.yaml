@@ -7,7 +7,8 @@ metadata:
       exec:
         path: kustomize-plugin-yqtransform
 spec:
-  expression: "sort_by(.name)"
+  source:
+    expression: "sort_by(.name)"
   targets:
   - select:
       kind: Deployment

@@ -15,6 +15,7 @@
   };
   config = {
     languages.go.enable = true;
+    env.GOPATH = lib.mkForce null;
 
     packages = [ pkgs.git ];
 

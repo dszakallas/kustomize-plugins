@@ -3,6 +3,7 @@ package transform
 import (
 	"fmt"
 
+	"gitops.szakallas.eu/plugins/internal/utils"
 	"sigs.k8s.io/kustomize/api/resource"
 	ktypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/errors"
@@ -45,7 +46,10 @@ func Apply(transform Transform, nodes []*yaml.RNode, targetSelectors []*TargetSe
 			return nil, fmt.Errorf("error creating target selector: %w", err)
 		}
 		for _, possibleTarget := range nodes {
-			id := makeResId(possibleTarget)
+			ids, err := utils.MakeResIds(possibleTarget)
+			if err != nil {
+				return nil, err
+			}
 
 			// filter targets by label and annotation selectors
 			selectByAnnoAndLabel, err := selectByAnnoAndLabel(possibleTarget, selector)
@@ -56,10 +60,13 @@ func Apply(transform Transform, nodes []*yaml.RNode, targetSelectors []*TargetSe
 				continue
 			}
 
-			if tsr.Selects(id) {
-				err := applyTransformToTarget(transform, possibleTarget, selector)
-				if err != nil {
-					return nil, err
+			for _, id := range ids {
+				if tsr.Selects(id) {
+					err := applyTransformToTarget(transform, possibleTarget, selector)
+					if err != nil {
+						return nil, err
+					}
+					break
 				}
 			}
 		}
@@ -107,16 +114,6 @@ func matchesAnnoAndLabelSelector(n *yaml.RNode, selector *ktypes.Selector) (bool
 		return false, err
 	}
 	return annoMatch && labelMatch, nil
-}
-
-func makeResId(n *yaml.RNode) resid.ResId {
-	apiVersion := n.Field(yaml.APIVersionField)
-	var group, version string
-	if apiVersion != nil {
-		group, version = resid.ParseGroupVersion(yaml.GetValue(apiVersion.Value))
-	}
-	return resid.NewResIdWithNamespace(
-		resid.Gvk{Group: group, Version: version, Kind: n.GetKind()}, n.GetName(), n.GetNamespace())
 }
 
 func applyTransformToTarget(transform Transform, target *yaml.RNode, selector *TargetSelector) error {
