@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"gitops.szakallas.eu/plugins/internal/testutils"
+	"github.com/midiparse/kustomize-plugins/internal/testutils"
 )
 
 func TestYQTransform(t *testing.T) {

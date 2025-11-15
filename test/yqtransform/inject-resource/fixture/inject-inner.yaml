@@ -1,4 +1,4 @@
-apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+apiVersion: kustomize-plugins.midiparse.github.com/v1alpha1
 kind: YqTransform
 metadata:
   name: inject

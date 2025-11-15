@@ -1,4 +1,4 @@
-module gitops.szakallas.eu/plugins
+module github.com/midiparse/kustomize-plugins
 
 go 1.25.0
 

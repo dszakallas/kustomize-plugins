@@ -17,7 +17,7 @@
     packages = [ pkgs.git ];
 
     enterShell = ''
-      export PATH=$DEVENV_ROOT/bin:$PATH
+      export PATH="$DEVENV_ROOT/bin:$PATH"
       go version
     '';
 
