@@ -2,16 +2,37 @@ package transform
 
 import (
 	"fmt"
+	"strings"
 
 	"gitops.szakallas.eu/plugins/internal/utils"
-	"sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/resid"
 	kyaml_utils "sigs.k8s.io/kustomize/kyaml/utils"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
 )
 
+// SourceSelector is the source of the replacement transformer.
+type SourceSelector struct {
+	// A specific object to read it from.
+	resid.ResId `json:",inline,omitempty" yaml:",inline,omitempty"`
+
+	// Structured field path expected in the allowed object.
+	FieldPath string `json:"fieldPath,omitempty" yaml:"fieldPath,omitempty"`
+}
+
+func (s *SourceSelector) String() string {
+	if s == nil {
+		return ""
+	}
+	result := []string{s.ResId.String()}
+	if s.FieldPath != "" {
+		result = append(result, s.FieldPath)
+	}
+	return strings.Join(result, ":")
+}
+
 // SelectSourceNode finds the node that matches the selector, returning
 // an error if multiple or none are found
-func SelectSourceNode(nodes []*yaml.RNode, selector *types.SourceSelector) (*yaml.RNode, error) {
+func SelectSourceNode(nodes []*yaml.RNode, selector *SourceSelector) (*yaml.RNode, error) {
 	var matches []*yaml.RNode
 	for _, n := range nodes {
 		ids, err := utils.MakeResIds(n)

@@ -11,7 +11,6 @@ import (
 	"gitops.szakallas.eu/plugins/internal/transform"
 	goyaml "go.yaml.in/yaml/v3"
 	logging "gopkg.in/op/go-logging.v1"
-	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework/command"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
@@ -59,9 +58,9 @@ type Source struct {
 
 // Var defines a variable to be passed to the yq expression.
 type Var struct {
-	Name        string                `yaml:"name" json:"name"`
-	SourceValue *string               `yaml:"sourceValue,omitempty" json:"sourceValue,omitempty"`
-	Source      *types.SourceSelector `yaml:"source,omitempty" json:"source,omitempty"`
+	Name        string                    `yaml:"name" json:"name"`
+	SourceValue *string                   `yaml:"sourceValue,omitempty" json:"sourceValue,omitempty"`
+	Source      *transform.SourceSelector `yaml:"source,omitempty" json:"source,omitempty"`
 }
 
 // API is the top-level configuration for the function.
@@ -167,57 +166,19 @@ type yqTransform struct {
 }
 
 func (s *yqTransform) CreateKind() yaml.Kind {
-	return yaml.Kind(0) // Cannot create a new node
+	return yaml.ScalarNode // Create a null scalar node to support node creation
 }
 
 func (s *yqTransform) Apply(target *yaml.RNode) error {
-	// Create the 'vars' mapping node
-	varsMapNode := &goyaml.Node{Kind: goyaml.MappingNode}
-	for name, node := range s.Variables {
-		keyNode := &goyaml.Node{
-			Kind:  goyaml.ScalarNode,
-			Tag:   "!!str",
-			Value: name,
-		}
-		// Ensure we are appending the actual yaml.Node from the CandidateNode
-		varsMapNode.Content = append(varsMapNode.Content, keyNode, node)
-	}
+	expr, node := wrapInVariableContext(s.Expression, target.YNode(), s.Variables)
 
-	// Create the top-level wrapper object
-	wrapperNode := &goyaml.Node{
-		Kind: goyaml.MappingNode,
-		Content: []*goyaml.Node{
-			{
-				Kind:  goyaml.ScalarNode,
-				Tag:   "!!str",
-				Value: "target",
-			},
-			target.YNode(),
-			{
-				Kind:  goyaml.ScalarNode,
-				Tag:   "!!str",
-				Value: "vars",
-			},
-			varsMapNode,
-		},
-	}
-
-	// Wrap the user expression
-	var wrappedExpression strings.Builder
-	for varName := range s.Variables {
-		wrappedExpression.WriteString(fmt.Sprintf(".vars.%s as $%s | ", varName, varName))
-	}
-
-	finalExpression := fmt.Sprintf(".target | %s", s.Expression)
-	wrappedExpression.WriteString(finalExpression)
-
-	inputNode, err := toCandidateNode(wrapperNode)
+	inputNode, err := toCandidateNode(node)
 	if err != nil {
 		return fmt.Errorf("failed to create input node for expression: %w", err)
 	}
 
 	// Evaluate the expression
-	result, err := s.Evaluator.EvaluateNodes(wrappedExpression.String(), inputNode)
+	result, err := s.Evaluator.EvaluateNodes(expr, inputNode)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate expression: %w", err)
 	}
@@ -246,4 +207,51 @@ func (s *yqTransform) Apply(target *yaml.RNode) error {
 	target.SetYNode(outNode)
 
 	return nil
+}
+
+func wrapInVariableContext(expression string, node *goyaml.Node, vars map[string]*goyaml.Node) (string, *goyaml.Node) {
+	if len(vars) == 0 {
+		// No variables to wrap
+		return expression, node
+	}
+	// Create the 'vars' mapping node
+	varsMapNode := &goyaml.Node{Kind: goyaml.MappingNode}
+	for k, v := range vars {
+		keyNode := &goyaml.Node{
+			Kind:  goyaml.ScalarNode,
+			Tag:   "!!str",
+			Value: k,
+		}
+		// Ensure we are appending the actual yaml.Node from the CandidateNode
+		varsMapNode.Content = append(varsMapNode.Content, keyNode, v)
+	}
+
+	// Create the top-level wrapper object
+	wrapperNode := &goyaml.Node{
+		Kind: goyaml.MappingNode,
+		Content: []*goyaml.Node{
+			{
+				Kind:  goyaml.ScalarNode,
+				Tag:   "!!str",
+				Value: "target",
+			},
+			node,
+			{
+				Kind:  goyaml.ScalarNode,
+				Tag:   "!!str",
+				Value: "vars",
+			},
+			varsMapNode,
+		},
+	}
+
+	// Wrap the user expression
+	var wrappedExpression strings.Builder
+	for varName := range vars {
+		wrappedExpression.WriteString(fmt.Sprintf(".vars.%s as $%s | ", varName, varName))
+	}
+
+	finalExpression := fmt.Sprintf(".target | %s", expression)
+	wrappedExpression.WriteString(finalExpression)
+	return wrappedExpression.String(), wrapperNode
 }
