@@ -13,4 +13,4 @@ jobs:
         with:
           name: devenv
       - run: nix profile add nixpkgs#devenv
-      - run: devenv test
+      - run: devenv test -d
