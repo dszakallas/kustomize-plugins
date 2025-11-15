@@ -22,6 +22,7 @@
     '';
 
     enterTest = ''
+      make lint
       make test
     '';
 

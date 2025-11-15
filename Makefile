@@ -14,3 +14,11 @@ test: \
 .PHONY: test/%
 test/kustomize-plugin-%: bin/kustomize-plugin-%
 	go test -v ./test/$*/...
+
+.PHONY: fmt
+fmt: $(GO_FILES)
+	golangci-lint fmt
+
+.PHONY: lint
+lint: $(GO_FILES)
+	golangci-lint run --fix ./...
