@@ -32,7 +32,7 @@ injection.
 Here is an example of a `ResourceInjector` configuration:
 
 ```yaml
-apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+apiVersion: kustomize-plugins.midiparse.github.com/v1alpha1
 kind: ResourceInjector
 metadata:
   name: inject
@@ -99,7 +99,7 @@ resources:
 
 transformers:
   - |-
-    apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+    apiVersion: kustomize-plugins.midiparse.github.com/v1alpha1
     kind: ResourceInjector
     metadata:
       name: inject
@@ -129,7 +129,7 @@ In this example, the `ResourceInjector` will:
 You can fine-tune how the source is rendered by specifying kustomize options:
 
 ```yaml
-apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+apiVersion: kustomize-plugins.midiparse.github.com/v1alpha1
 kind: ResourceInjector
 metadata:
   name: inject-with-options
@@ -190,7 +190,7 @@ The `YqTransform` is configured using a YAML file that defines the `expression` 
 Here is an example of a `YqTransform` configuration:
 
 ```yaml
-apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+apiVersion: kustomize-plugins.midiparse.github.com/v1alpha1
 kind: YqTransform
 metadata:
   name: sort-env-vars
@@ -237,7 +237,7 @@ resources:
 
 transformers:
   - |-
-    apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+    apiVersion: kustomize-plugins.midiparse.github.com/v1alpha1
     kind: YqTransform
     metadata:
       name: sort-env-vars
@@ -270,7 +270,7 @@ This is useful for injecting values from other resources or from literal strings
 Here is an example of how to inject a field from another resource into a `ConfigMap`:
 
 ```yaml
-apiVersion: kustomize-plugins.dszakallas.github.com/v1alpha1
+apiVersion: kustomize-plugins.midiparse.github.com/v1alpha1
 kind: YqTransform
 metadata:
   name: inject
@@ -315,6 +315,26 @@ targets:
   - spec.template.spec.containers.*.env
 ```
 
+**Inject another resource as a string:**
+
+```yaml
+source:
+  vars:
+    - name: example
+      source:
+        kind: CustomResource
+        name: example
+        fieldPath: spec
+  expression: ".= ($example | @yaml)"
+targets:
+- select:
+    kind: ConfigMap
+  fieldPaths:
+  - data.[inner.yaml]
+  options:
+    create: true
+```
+
 **Filter items from an array:**
 
 ```yaml
@@ -333,14 +353,4 @@ source:
 targets:
 - fieldPaths:
   - spec.template.spec.containers.*
-```
-
-**Transform nested structures:**
-
-```yaml
-source:
-  expression: ".limits.memory = \"2Gi\""
-targets:
-- fieldPaths:
-  - spec.template.spec.containers.*.resources
 ```

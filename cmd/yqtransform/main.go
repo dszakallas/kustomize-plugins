@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/midiparse/kustomize-plugins/internal/transform"
 	"github.com/mikefarah/yq/v4/pkg/yqlib"
-	"gitops.szakallas.eu/plugins/internal/transform"
 	goyaml "go.yaml.in/yaml/v3"
 	logging "gopkg.in/op/go-logging.v1"
 	"sigs.k8s.io/kustomize/kyaml/fn/framework"

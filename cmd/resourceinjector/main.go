@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"gitops.szakallas.eu/plugins/internal/transform"
+	"github.com/midiparse/kustomize-plugins/internal/transform"
 	"sigs.k8s.io/kustomize/api/krusty"
 	ktypes "sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/filesys"

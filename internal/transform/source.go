@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gitops.szakallas.eu/plugins/internal/utils"
+	"github.com/midiparse/kustomize-plugins/internal/utils"
 	"sigs.k8s.io/kustomize/kyaml/resid"
 	kyaml_utils "sigs.k8s.io/kustomize/kyaml/utils"
 	"sigs.k8s.io/kustomize/kyaml/yaml"
