@@ -1,12 +1,10 @@
-SOURCES = $(shell find cmd/resourceinjector -name '*.go')
-
-PATH := $(shell pwd)/bin:$(PATH)
+GO_FILES = $(shell find . -name '*.go' -not -name '*_test.go') go.mod go.sum
 
 all: \
   bin/kustomize-plugin-resourceinjector \
   bin/kustomize-plugin-yqtransform
 
-bin/kustomize-plugin-%: $(SOURCES)
+bin/kustomize-plugin-%: $(GO_FILES)
 	go build -o $@ ./cmd/$*
 
 test: \
@@ -15,4 +13,4 @@ test: \
 
 .PHONY: test/%
 test/kustomize-plugin-%: bin/kustomize-plugin-%
-	go test -v ./cmd/$*/...
+	go test -v ./test/$*/...

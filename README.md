@@ -292,6 +292,8 @@ spec:
       kind: ConfigMap
     fieldPaths:
     - data.[inner.yaml]
+    options:
+      create: true
 ```
 
 In this example:

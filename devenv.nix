@@ -14,12 +14,10 @@
     };
   };
   config = {
-    languages.go.enable = true;
-    env.GOPATH = lib.mkForce null;
-
     packages = [ pkgs.git ];
 
     enterShell = ''
+      export PATH=$DEVENV_ROOT/bin:$PATH
       go version
     '';
 
