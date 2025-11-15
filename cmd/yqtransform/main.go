@@ -216,14 +216,14 @@ func wrapInVariableContext(expression string, node *goyaml.Node, vars map[string
 	}
 	// Create the 'vars' mapping node
 	varsMapNode := &goyaml.Node{Kind: goyaml.MappingNode}
-	for name, node := range vars {
+	for k, v := range vars {
 		keyNode := &goyaml.Node{
 			Kind:  goyaml.ScalarNode,
 			Tag:   "!!str",
-			Value: name,
+			Value: k,
 		}
 		// Ensure we are appending the actual yaml.Node from the CandidateNode
-		varsMapNode.Content = append(varsMapNode.Content, keyNode, node)
+		varsMapNode.Content = append(varsMapNode.Content, keyNode, v)
 	}
 
 	// Create the top-level wrapper object
