@@ -1,0 +1,12 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "github>dszakallas/renovate-config//default.json5",
+    ":automergeBranch",
+    ":skipStatusChecks",
+  ],
+
+  schedule: ["* 6-12 * * 4"],
+  timezone: "Europe/Prague",
+  labels: ["dep", "autofix"]
+}
