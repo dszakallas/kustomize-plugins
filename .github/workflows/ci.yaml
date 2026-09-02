@@ -9,7 +9,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: cachix/install-nix-action@v31
-      - uses: cachix/cachix-action@v16
+        with:
+          install_url: https://releases.nixos.org/nix/nix-2.34.8/install
+      - uses: cachix/cachix-action@v17
         with:
           name: devenv
       - run: nix profile add nixpkgs#devenv
