@@ -11,7 +11,7 @@ inputs:
       nixpkgs:
         follows: nixpkgs
   nixpkgs:
-    url: github:cachix/devenv-nixpkgs/rolling
+    url: github:NixOS/nixpkgs/nixpkgs-unstable
 imports:
 - davids-devenvs/recommended
 - davids-devenvs/go
