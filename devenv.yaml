@@ -1,12 +1,17 @@
 # yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
 inputs:
-  nixpkgs:
-    url: github:cachix/devenv-nixpkgs/rolling
-  flake-utils:
-    url: github:numtide/flake-utils
   davids-devenvs:
     url: github:dszakallas/devenvs
     flake: false
+  flake-utils:
+    url: github:numtide/flake-utils
+  git-hooks:
+    url: github:cachix/git-hooks.nix
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
+  nixpkgs:
+    url: github:cachix/devenv-nixpkgs/rolling
 imports:
-  - davids-devenvs/recommended
-  - davids-devenvs/go
+- davids-devenvs/recommended
+- davids-devenvs/go
