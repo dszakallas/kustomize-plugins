@@ -39,7 +39,7 @@
           stdenv = (
             pkgs.stdenv
             // {
-              hostPlatform = inputs.nixpkgs.legacyPackages.${system}.stdenv.hostPlatform;
+              hostPlatform = pkgs.lib.systems.elaborate system;
             }
           );
           buildGoModule = pkgs.buildGoModule.override { inherit stdenv; };
